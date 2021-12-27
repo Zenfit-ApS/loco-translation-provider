@@ -35,14 +35,16 @@ final class LocoProvider implements ProviderInterface
     private $logger;
     private $defaultLocale;
     private $endpoint;
+    private $domains;
 
-    public function __construct(HttpClientInterface $client, LoaderInterface $loader, LoggerInterface $logger, string $defaultLocale, string $endpoint)
+    public function __construct(HttpClientInterface $client, LoaderInterface $loader, LoggerInterface $logger, string $defaultLocale, string $endpoint, array $domains)
     {
         $this->client = $client;
         $this->loader = $loader;
         $this->logger = $logger;
         $this->defaultLocale = $defaultLocale;
         $this->endpoint = $endpoint;
+        $this->domains = $domains;
     }
 
     public function __toString(): string
@@ -59,6 +61,9 @@ final class LocoProvider implements ProviderInterface
         }
 
         foreach ($catalogue->all() as $domain => $messages) {
+            if (!in_array($domain, $this->domains, true)) {
+                continue;
+            }
             $createdIds = $this->createAssets(array_keys($messages), $domain);
             if ($createdIds) {
                 $this->tagsAssets($createdIds, $domain);
@@ -73,6 +78,9 @@ final class LocoProvider implements ProviderInterface
             }
 
             foreach ($catalogue->all() as $domain => $messages) {
+                if (!in_array($domain, $this->domains, true)) {
+                    continue;
+                }
                 $keysIdsMap = [];
 
                 foreach ($this->getAssetsIds($domain) as $id) {
@@ -137,6 +145,10 @@ final class LocoProvider implements ProviderInterface
         $responses = [];
 
         foreach (array_keys($catalogue->all()) as $domain) {
+            if (!in_array($domain, $this->domains, true)) {
+                continue;
+            }
+
             foreach ($this->getAssetsIds($domain) as $id) {
                 $responses[$id] = $this->client->request('DELETE', sprintf('assets/%s.json', $id));
             }
