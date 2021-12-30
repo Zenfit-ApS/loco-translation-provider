@@ -87,9 +87,14 @@ final class LocoProvider implements ProviderInterface
                     $keysIdsMap[$this->retrieveKeyFromId($id, $domain)] = $id;
                 }
 
-                $ids = array_intersect_key($keysIdsMap, $messages);
+                $assets = [];
+                foreach ($keysIdsMap as $key => $id) {
+                    if (isset($messages[$key])) {
+                        $assets[$id] = $messages[$key];
+                    }
+                }
 
-                $this->translateAssets(array_combine(array_values($ids), array_values($messages)), $locale);
+                $this->translateAssets($assets, $locale);
             }
         }
     }
@@ -150,7 +155,7 @@ final class LocoProvider implements ProviderInterface
             }
 
             foreach ($this->getAssetsIds($domain) as $id) {
-                $responses[$id] = $this->client->request('DELETE', sprintf('assets/%s.json', $id));
+                $responses[$id] = $this->client->request('DELETE', sprintf('assets/%s.json', rawurlencode($id)));
             }
         }
 
@@ -212,7 +217,7 @@ final class LocoProvider implements ProviderInterface
         $responses = [];
 
         foreach ($translations as $id => $message) {
-            $responses[$id] = $this->client->request('POST', sprintf('translations/%s/%s', $id, $locale), [
+            $responses[$id] = $this->client->request('POST', sprintf('translations/%s/%s', rawurlencode($id), rawurlencode($locale)), [
                 'body' => $message,
             ]);
         }
@@ -230,12 +235,34 @@ final class LocoProvider implements ProviderInterface
             $this->createTag($tag);
         }
 
-        $response = $this->client->request('POST', sprintf('tags/%s.json', $tag), [
-            'body' => implode(',', $ids),
+        // Separate ids with and without comma.
+        $idsWithComma = $idsWithoutComma = [];
+        foreach ($ids as $id) {
+            if (false !== strpos($id, ',')) {
+                $idsWithComma[] = $id;
+            } else {
+                $idsWithoutComma[] = $id;
+            }
+        }
+
+        // Set tags for all ids without comma.
+        $response = $this->client->request('POST', sprintf('tags/%s.json', rawurlencode($tag)), [
+            'body' => implode(',', $idsWithoutComma),
         ]);
 
         if (200 !== $response->getStatusCode()) {
             $this->logger->error(sprintf('Unable to tag assets with "%s" on Loco: "%s".', $tag, $response->getContent(false)));
+        }
+
+        // Set tags for each id with comma one by one.
+        foreach ($idsWithComma as $id) {
+            $response = $this->client->request('POST', sprintf('assets/%s/tags', rawurlencode($id)), [
+                'body' => ['name' => $tag],
+            ]);
+
+            if (200 !== $response->getStatusCode()) {
+                $this->logger->error(sprintf('Unable to tag asset "%s" with "%s" on Loco: "%s".', $id, $tag, $response->getContent(false)));
+            }
         }
     }
 
