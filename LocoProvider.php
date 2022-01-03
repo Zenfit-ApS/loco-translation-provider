@@ -128,15 +128,15 @@ final class LocoProvider implements ProviderInterface
                 $locoCatalogue = $this->loader->load($responseContent, $locale, $domain);
                 $catalogue = new MessageCatalogue($locale);
 
-                foreach ($locoCatalogue->all($domain) as $key => $message) {
-                    $catalogue->set($this->retrieveKeyFromId($key, $domain), $message, $domain);
-                }
-
                 $result = [];
                 foreach ($locoCatalogue->all($domain) as $key => $message) {
                     $result[$this->retrieveKeyFromId($key, $domain)] = $message;
                 }
                 ksort($result);
+
+                foreach ($result as $key => $message) {
+                    $catalogue->set($key, $message, $domain);
+                }
 
                 $translatorBag->addCatalogue($catalogue);
             }
