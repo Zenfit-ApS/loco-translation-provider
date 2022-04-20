@@ -220,16 +220,12 @@ final class LocoProvider implements ProviderInterface
 
     private function translateAssets(array $translations, string $locale): void
     {
-        $responses = [];
-
         foreach ($translations as $id => $message) {
-            $responses[$id] = $this->client->request('POST', sprintf('translations/%s/%s', rawurlencode($id), rawurlencode($locale)), [
+            $response = $this->client->request('POST', sprintf('translations/%s/%s', rawurlencode($id), rawurlencode($locale)), [
                 'body' => $message,
                 'headers' => ['Content-Type' => 'text/plain'],
             ]);
-        }
 
-        foreach ($responses as $id => $response) {
             if (200 !== $response->getStatusCode()) {
                 $this->logger->error(sprintf('Unable to add translation for key "%s" in locale "%s" to Loco: "%s".', $id, $locale, $response->getContent(false)));
             }
