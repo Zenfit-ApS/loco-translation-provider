@@ -229,6 +229,7 @@ final class LocoProvider implements ProviderInterface
             if (200 !== $response->getStatusCode()) {
                 $this->logger->error(sprintf('Unable to add translation for key "%s" in locale "%s" to Loco: "%s".', $id, $locale, $response->getContent(false)));
             }
+            usleep(500000);
         }
     }
 
