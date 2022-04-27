@@ -197,7 +197,7 @@ final class LocoProvider implements ProviderInterface
         $responses = $createdIds = [];
 
         foreach ($keys as $key) {
-            $responses[$key] = $this->client->request('POST', 'assets', [
+            $response = $this->client->request('POST', 'assets', [
                 'body' => [
                     'id' => $domain.'__'.$key, // must be globally unique, not only per domain
                     'text' => $key,
@@ -205,14 +205,14 @@ final class LocoProvider implements ProviderInterface
                     'default' => 'untranslated',
                 ],
             ]);
-        }
 
-        foreach ($responses as $key => $response) {
             if (201 !== $response->getStatusCode()) {
                 $this->logger->error(sprintf('Unable to add new translation key "%s" to Loco: (status code: "%s") "%s".', $key, $response->getStatusCode(), $response->getContent(false)));
             } else {
                 $createdIds[] = $response->toArray(false)['id'];
             }
+
+            usleep(300000);
         }
 
         return $createdIds;
@@ -229,7 +229,8 @@ final class LocoProvider implements ProviderInterface
             if (200 !== $response->getStatusCode()) {
                 $this->logger->error(sprintf('Unable to add translation for key "%s" in locale "%s" to Loco: "%s".', $id, $locale, $response->getContent(false)));
             }
-            usleep(500000);
+
+            usleep(300000);
         }
     }
 
