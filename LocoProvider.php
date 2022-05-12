@@ -37,8 +37,9 @@ final class LocoProvider implements ProviderInterface
     private string $defaultLocale;
     private string $endpoint;
     private ?TranslatorBagInterface $translatorBag = null;
+    private array $domains;
 
-    public function __construct(HttpClientInterface $client, LoaderInterface $loader, LoggerInterface $logger, string $defaultLocale, string $endpoint, TranslatorBagInterface $translatorBag = null)
+    public function __construct(HttpClientInterface $client, LoaderInterface $loader, LoggerInterface $logger, string $defaultLocale, string $endpoint, array $domains, TranslatorBagInterface $translatorBag = null)
     {
         $this->client = $client;
         $this->loader = $loader;
@@ -46,6 +47,7 @@ final class LocoProvider implements ProviderInterface
         $this->defaultLocale = $defaultLocale;
         $this->endpoint = $endpoint;
         $this->translatorBag = $translatorBag;
+        $this->domains = $domains;
     }
 
     public function __toString(): string
@@ -62,6 +64,9 @@ final class LocoProvider implements ProviderInterface
         }
 
         foreach ($catalogue->all() as $domain => $messages) {
+            if (!in_array($domain, $this->domains, true)) {
+                continue;
+            }
             $createdIds = $this->createAssets(array_keys($messages), $domain);
             if ($createdIds) {
                 $this->tagsAssets($createdIds, $domain);
@@ -76,6 +81,9 @@ final class LocoProvider implements ProviderInterface
             }
 
             foreach ($catalogue->all() as $domain => $messages) {
+                if (!in_array($domain, $this->domains, true)) {
+                    continue;
+                }
                 $keysIdsMap = [];
 
                 foreach ($this->getAssetsIds($domain) as $id) {
@@ -146,8 +154,14 @@ final class LocoProvider implements ProviderInterface
                 $locoCatalogue = $this->loader->load($responseContent, $locale, $domain);
                 $catalogue = new MessageCatalogue($locale);
 
+                $result = [];
                 foreach ($locoCatalogue->all($domain) as $key => $message) {
-                    $catalogue->set($this->retrieveKeyFromId($key, $domain), $message, $domain);
+                    $result[$this->retrieveKeyFromId($key, $domain)] = $message;
+                }
+                ksort($result);
+
+                foreach ($result as $key => $message) {
+                    $catalogue->set($key, $message, $domain);
                 }
 
                 if ($previousCatalogue instanceof CatalogueMetadataAwareInterface) {
@@ -178,6 +192,10 @@ final class LocoProvider implements ProviderInterface
         $responses = [];
 
         foreach (array_keys($catalogue->all()) as $domain) {
+            if (!in_array($domain, $this->domains, true)) {
+                continue;
+            }
+
             foreach ($this->getAssetsIds($domain) as $id) {
                 $responses[$id] = $this->client->request('DELETE', sprintf('assets/%s.json', rawurlencode($id)));
             }
@@ -215,7 +233,7 @@ final class LocoProvider implements ProviderInterface
         $responses = $createdIds = [];
 
         foreach ($keys as $key) {
-            $responses[$key] = $this->client->request('POST', 'assets', [
+            $response = $this->client->request('POST', 'assets', [
                 'body' => [
                     'id' => $domain.'__'.$key, // must be globally unique, not only per domain
                     'text' => $key,
@@ -223,9 +241,7 @@ final class LocoProvider implements ProviderInterface
                     'default' => 'untranslated',
                 ],
             ]);
-        }
 
-        foreach ($responses as $key => $response) {
             if (201 !== $response->getStatusCode()) {
                 $this->logger->error(sprintf('Unable to add new translation key "%s" to Loco: (status code: "%s") "%s".', $key, $response->getStatusCode(), $response->getContent(false)));
             } else {
@@ -238,16 +254,12 @@ final class LocoProvider implements ProviderInterface
 
     private function translateAssets(array $translations, string $locale): void
     {
-        $responses = [];
-
         foreach ($translations as $id => $message) {
-            $responses[$id] = $this->client->request('POST', sprintf('translations/%s/%s', rawurlencode($id), rawurlencode($locale)), [
+            $response = $this->client->request('POST', sprintf('translations/%s/%s', rawurlencode($id), rawurlencode($locale)), [
                 'body' => $message,
                 'headers' => ['Content-Type' => 'text/plain'],
             ]);
-        }
 
-        foreach ($responses as $id => $response) {
             if (200 !== $response->getStatusCode()) {
                 $this->logger->error(sprintf('Unable to add translation for key "%s" in locale "%s" to Loco: "%s".', $id, $locale, $response->getContent(false)));
             }

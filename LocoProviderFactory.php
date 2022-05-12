@@ -30,10 +30,12 @@ final class LocoProviderFactory extends AbstractProviderFactory
     private LoggerInterface $logger;
     private string $defaultLocale;
     private LoaderInterface $loader;
+    private array $domains;
     private ?TranslatorBagInterface $translatorBag = null;
 
-    public function __construct(HttpClientInterface $client, LoggerInterface $logger, string $defaultLocale, LoaderInterface $loader, TranslatorBagInterface $translatorBag = null)
+    public function __construct(HttpClientInterface $client, LoggerInterface $logger, string $defaultLocale, LoaderInterface $loader, TranslatorBagInterface $translatorBag = null, array $domains = [])
     {
+        $this->domains = $domains;
         $this->client = $client;
         $this->logger = $logger;
         $this->defaultLocale = $defaultLocale;
@@ -57,7 +59,7 @@ final class LocoProviderFactory extends AbstractProviderFactory
             ],
         ]);
 
-        return new LocoProvider($client, $this->loader, $this->logger, $this->defaultLocale, $endpoint, $this->translatorBag);
+        return new LocoProvider($client, $this->loader, $this->logger, $this->defaultLocale, $endpoint, $this->translatorBag, $this->domains);
     }
 
     protected function getSupportedSchemes(): array
