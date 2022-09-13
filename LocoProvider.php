@@ -132,7 +132,7 @@ final class LocoProvider implements ProviderInterface
                 foreach ($locoCatalogue->all($domain) as $key => $message) {
                     $result[$this->retrieveKeyFromId($key, $domain)] = $message;
                 }
-                ksort($result);
+                ksort($result, SORT_NATURAL);
 
                 foreach ($result as $key => $message) {
                     $catalogue->set($key, $message, $domain);
